@@ -170,6 +170,17 @@ struct ConvertTensorFromElementsPattern
     // Check that all the dimensions are 1.
     if (!llvm::all_of(tensorType.getShape(),
                       [](int64_t dim) { return dim == 1; })) {
+        if(tensorType.getShape().size() == 1) {
+          auto loc = op.getLoc();
+          auto result = rewriter.create<IREE::Flow::TensorSplatOp>(
+            loc, tensorType, op.getOperand(0), ValueRange()).getResult();
+          for (int64_t i = 1; i < op.getNumOperands() ; ++i) {
+            result = rewriter.create<IREE::Flow::TensorStoreOp>(loc, op.getOperand(i), result,
+              SmallVector<Value> {rewriter.create<arith::ConstantIndexOp>(loc, i)});
+          }
+          rewriter.replaceOp(op, result);
+          return success();
+        }
       return failure();
     }
 
